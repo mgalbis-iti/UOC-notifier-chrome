@@ -786,7 +786,7 @@ var Session = new function() {
 		this.retrieve();
 	};
 
-	this.retrieve = function() {
+	this.retrieve = function () {
 		var user_save = get_user();
 		if (user_save.username && user_save.password) {
 			if (!retrieving) {
@@ -798,69 +798,70 @@ var Session = new function() {
 				// if (!s || s.length <= 0) {
 				// 	url += '?renew=true';
 				// }
-				
+
+
 				var plin_domain = 'https://campusplin.uoc.edu'
-				
-				var url = plin_domain +'/saml/login'
+
+				chrome.cookies.getAll({ domain: ".uoc.edu" }, (cookies) => {
+					for (let i = 0; i < cookies.length; i++) {
+						let url = 'https://' + (cookies[i].domain.startsWith('.') ? 'campusplin' : '') + cookies[i].domain + cookies[i].path
+						Debug.print('Cookie: url=' + url + ', name=' + cookies[i].name);
+						chrome.cookies.remove({url, name: cookies[i].name})
+					}
+				});
+
+				var url = plin_domain + '/saml/login'
 				Debug.print('Calling url: ' + url);
-				
+
 				$.ajax({
 					type: 'GET',
 					url
-				})
-				.done(function(resp) {
-					
+				}).done(function (resp) {
+
 					var root = document.createElement("div");
 					root.innerHTML = resp;
-					
+
 					var form = $.parseHTML(root.querySelectorAll("form")[0].outerHTML)[0];
 					var action = form.attributes.action.value;
 					var idp = form.elements.idp.value;
-					
-					var url = plin_domain + action +'&idp='+encodeURIComponent(idp)
+
+					var url = plin_domain + action + '&idp=' + encodeURIComponent(idp)
 					Debug.print('Calling url ' + url);
 					$.ajax({
 						type: 'GET',
-						url: url
-					})
-					.done(function(resp) {
-						
+						url
+					}).done(function (resp) {
+
 						root.innerHTML = resp;
-						
+
 						var form = $.parseHTML(root.querySelectorAll("form")[0].outerHTML)[0];
 						var action = form.attributes.action.value;
 						var SAMLRequest = form.elements.SAMLRequest.value;
-						
+
 						var parser = document.createElement('a');
 						parser.href = action;
-						
+
 						var baseUrl = parser.origin;
-						
+
 						var url = (action.startsWith('/') ? baseUrl : '') + action;
 						Debug.print('Calling url ' + url);
-						
+
 						$.ajax({
-					        type: 'POST',
-					        url,
-					        data: {SAMLRequest}
-					    })
-					    .done(function(resp) {
-							
+							type: 'POST',
+							url,
+							data: {SAMLRequest}
+						}).done(function (resp) {
+
 							root.innerHTML = resp;
-							
+
 							var form = $.parseHTML(root.querySelectorAll("form")[0].outerHTML)[0];
 							var action = form.attributes.action.value;
-							
-							var data = {
-								j_username: user_save.username,
-								j_password: user_save.password,
-								_eventId_proceed: ''
-							};
+
 							var url = (action.startsWith('/') ? baseUrl : '') + action;
 							Debug.print('Calling url: ' + url);
-							
+
 							//var aux = url
-							
+
 							$.ajax({
 								type: 'POST',
 								beforeSend: function (request) {
@@ -877,57 +878,46 @@ var Session = new function() {
 									_eventId_proceed: ''
 								}),
 								processData: false
-							})
-							.done(function(resp) {
-								
+							}).done(function (resp) {
+
 								root.innerHTML = resp;
-											
+
 								var form = $.parseHTML(root.querySelectorAll("form")[0].outerHTML)[0];
 								var action = form.attributes.action.value;
 								var SAMLResponse = form.elements.SAMLResponse.value;
-											
+
 								var url = (action.startsWith('/') ? baseUrl : '') + action;
 								Debug.print('Calling url: ' + url);
-								
+
 								$.ajax({
 									type: 'POST',
 									url,
 									data: {SAMLResponse}
-								})
-								.done(function(resp) {
-									
-									chrome.cookies.getAll({
-										domain: '.uoc.edu',
-										name: 'campusSessionId'
-									}, function (theCookies) {
+								}).done(function (resp) {
+
+									chrome.cookies.getAll({domain: '.uoc.edu', name: 'campusSessionId'}, function (theCookies) {
 										parse_session(theCookies[0].value)
 									});
-									
-								})
-								.fail(function() {
+
+								}).fail(function () {
 									Debug.error('ERROR: Cannot login');
 								})
-							})
-							.fail(function() {
+							}).fail(function () {
 								Debug.error('ERROR: Cannot login');
 							})
-						})
-						.fail(function(e) {
+						}).fail(function (e) {
 							Debug.error('ERROR: Cannot login. ' + e);
 						})
-					})
-					.fail(function() {
+					}).fail(function () {
 						Debug.error('ERROR: Cannot renew session');
 						not_working();
 					})
-				})
-				.fail(function() {
-			        Debug.error('ERROR: Cannot renew session');
-			        not_working();
-			    })
-			    .always(function() {
-			        retrieving = false;
-			    });
+				}).fail(function () {
+					Debug.error('ERROR: Cannot renew session');
+					not_working();
+				}).always(function () {
+					retrieving = false;
+				});
 			}
 		}
 	};
@@ -953,7 +943,8 @@ var Session = new function() {
 			}
 			not_working();
 		}
-	}
+	};
+
 };
 // TODO http://cv.uoc.edu/webapps/classroom/servlet/GroupServlet?dtId=MULTI&dtIdList=&s=
 // //http://cv.uoc.edu/webapps/classroom/servlet/GroupServlet?dtId=MULTI&dtIdList=%27TUTORIA%27&s=
